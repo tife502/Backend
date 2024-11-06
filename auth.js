@@ -10,7 +10,7 @@ const createToken = (user) => {
   return jwt.sign(
     { id: user.id, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: '2h' } // Cambia la duración si es necesario
+    { expiresIn: '90d' } // Cambia la duración si es necesario
   );
 };
 
