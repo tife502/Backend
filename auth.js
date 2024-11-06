@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 require('dotenv').config();
+const { client } = require('./db'); // Importa la conexión
+
 
 
 // Función para crear un token JWT
@@ -28,23 +30,28 @@ const register = async (req, res) => {
 
 // Inicio de Sesión
 const login = async (req, res) => {
+  const { username, password } = req.body;
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ where: { email } }); // Ajusta según tu ORM o base de datos
+    // Consulta el usuario en la base de datos usando el username
+    const result = await client.query('SELECT * FROM users WHERE username = $1', [username]);
+    const user = result.rows[0];
 
+    // Verifica si el usuario existe
     if (!user) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
+    // Compara la contraseña ingresada con la almacenada en la base de datos
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ message: 'Contraseña incorrecta' });
     }
 
+    // Genera un token de autenticación para el usuario
     const token = createToken(user);
-    res.status(200).json({ token, user: { id: user.id, email: user.email, role: user.role } });
-  } catch (error) {
-    res.status(500).json({ message: 'Error al iniciar sesión', error });
+    res.status(200).json({ token, user: { id: user.id, username: user.username, role: user.role } });
+  } catch (err) {
+    res.status(500).json({ message: 'Error al iniciar sesión 2334' });
   }
 };
 
@@ -71,5 +78,6 @@ const verifyToken = (req, res, next) => {
 module.exports = {
   register,
   login,
-  verifyToken
+  verifyToken,
+  createToken
 };

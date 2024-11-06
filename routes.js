@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { createToken, verifyToken } = require('./auth');
 const { client } = require('./db'); // Importa la conexión
+const bcrypt = require('bcrypt');
+
 
 // Registro de usuario 
 router.post('/register', async (req, res) => {
@@ -18,24 +20,30 @@ router.post('/register', async (req, res) => {
 });
 
 // Login de usuario
+
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
-    const result = await client.query(
-      'SELECT * FROM users WHERE username = $1 AND password = $2',
-      [username, password]
-    );
+    const result = await client.query('SELECT * FROM users WHERE username = $1', [username]);
     const user = result.rows[0];
-    if (user) {
-      const token = createToken(user);
-      return res.json({ token });
-    } else {
-      return res.status(401).json({ message: 'Credenciales incorrectas' });
+
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
     }
+
+    // Compara la contraseña directamente sin bcrypt
+    if (password !== user.password) {
+      return res.status(401).json({ message: 'Contraseña incorrecta' });
+    }
+
+    const token = createToken(user); // Suponiendo que tienes esta función para crear el token
+    res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
   } catch (err) {
+    console.error(err);  // Muestra el error real para depuración
     res.status(500).json({ message: 'Error al iniciar sesión' });
   }
 });
+
 
 // Obtener todos los usuarios (solo admin)
 router.get('/users', verifyToken, async (req, res) => {
@@ -153,6 +161,54 @@ router.get('/movimientos/:id', verifyToken, async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ message: 'Error al obtener movimientos' });
+  }
+});
+
+// Obtener todos los materiales
+router.get('/materials', verifyToken, async (req, res) => {
+  try {
+    const result = await client.query('SELECT * FROM materials');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Error al obtener materiales' });
+  }
+});
+
+// Crear un nuevo material (solo admin)
+router.post('/materials', verifyToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'No autorizado' });
+  }
+  const { material_name } = req.body;
+  try {
+    const result = await client.query(
+      'INSERT INTO materials (material_name) VALUES ($1) RETURNING *',
+      [material_name]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: 'Error al crear material' });
+  }
+});
+
+// Actualizar un material existente (solo admin)
+router.patch('/materials/:id', verifyToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'No autorizado' });
+  }
+  const { id } = req.params;
+  const { material_name } = req.body;
+  try {
+    const result = await client.query(
+      'UPDATE materials SET material_name = $1 WHERE id = $2 RETURNING *',
+      [material_name, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Material no encontrado' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: 'Error al actualizar material' });
   }
 });
 
