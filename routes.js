@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createToken, verifyToken } = require('./auth');
+const { createToken } = require('./auth');
 const { client } = require('./db'); // Importa la conexión
 const bcrypt = require('bcrypt');
 
@@ -46,10 +46,7 @@ router.post('/login', async (req, res) => {
 
 
 // Obtener todos los usuarios (solo admin)
-router.get('/users', verifyToken, async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'No autorizado' });
-  }
+router.get('/users', async (req, res) => {
   try {
     const result = await client.query('SELECT * FROM users');
     res.json(result.rows);
@@ -59,7 +56,7 @@ router.get('/users', verifyToken, async (req, res) => {
 });
 
 // Obtener todos los productos
-router.get('/productos', verifyToken, async (req, res) => {
+router.get('/productos', async (req, res) => {
   try {
     const result = await client.query('SELECT * FROM products');
     res.json(result.rows);
@@ -69,10 +66,7 @@ router.get('/productos', verifyToken, async (req, res) => {
 });
 
 // Crear producto (solo admin)
-router.post('/productos', verifyToken, async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'No autorizado' });
-  }
+router.post('/productos', async (req, res) => {
   const { product_code, description, material_id, initial_price, final_price, weight, supplier } = req.body;
   try {
     const result = await client.query(
@@ -88,10 +82,7 @@ router.post('/productos', verifyToken, async (req, res) => {
 });
 
 // Actualizar producto (solo admin)
-router.put('/productos/:id', verifyToken, async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'No autorizado' });
-  }
+router.put('/productos/:id', async (req, res) => {
   const { id } = req.params;
   const { description, material_id, initial_price, final_price, weight, supplier } = req.body;
   try {
@@ -106,10 +97,7 @@ router.put('/productos/:id', verifyToken, async (req, res) => {
 });
 
 // Eliminar producto (solo admin)
-router.delete('/productos/:id', verifyToken, async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'No autorizado' });
-  }
+router.delete('/productos/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await client.query('DELETE FROM products WHERE id = $1', [id]);
@@ -120,14 +108,8 @@ router.delete('/productos/:id', verifyToken, async (req, res) => {
 });
 
 // Registrar movimiento
-router.post('/movimientos', verifyToken, async (req, res) => {
+router.post('/movimientos', async (req, res) => {
   const { movement_type, product_id, quantity } = req.body;
-  if ((movement_type === 'add' || movement_type === 'edit') && req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Solo el admin puede agregar o editar productos' });
-  }
-  if (movement_type === 'withdraw' && req.user.role !== 'employee') {
-    return res.status(403).json({ message: 'Solo los empleados pueden retirar productos' });
-  }
   try {
     const result = await client.query(
       `INSERT INTO movements (user_id, product_id, movement_type, quantity, movement_date) 
@@ -141,10 +123,7 @@ router.post('/movimientos', verifyToken, async (req, res) => {
 });
 
 // Obtener todos los movimientos (solo admin)
-router.get('/movimientos', verifyToken, async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'No autorizado' });
-  }
+router.get('/movimientos', async (req, res) => {
   try {
     const result = await client.query('SELECT * FROM movements');
     res.json(result.rows);
@@ -154,7 +133,7 @@ router.get('/movimientos', verifyToken, async (req, res) => {
 });
 
 // Obtener movimientos de un usuario específico
-router.get('/movimientos/:id', verifyToken, async (req, res) => {
+router.get('/movimientos/:id', async (req, res) => {
   const iduser = req.user.id;
   try {
     const result = await client.query('SELECT * FROM movements WHERE user_id = $1', [iduser]);
@@ -165,7 +144,7 @@ router.get('/movimientos/:id', verifyToken, async (req, res) => {
 });
 
 // Obtener todos los materiales
-router.get('/materials', verifyToken, async (req, res) => {
+router.get('/materials', async (req, res) => {
   try {
     const result = await client.query('SELECT * FROM materials');
     res.json(result.rows);
@@ -175,10 +154,7 @@ router.get('/materials', verifyToken, async (req, res) => {
 });
 
 // Crear un nuevo material (solo admin)
-router.post('/materials', verifyToken, async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'No autorizado' });
-  }
+router.post('/materials', async (req, res) => {
   const { material_name } = req.body;
   try {
     const result = await client.query(
@@ -192,10 +168,7 @@ router.post('/materials', verifyToken, async (req, res) => {
 });
 
 // Actualizar un material existente (solo admin)
-router.patch('/materials/:id', verifyToken, async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'No autorizado' });
-  }
+router.patch('/materials/:id', async (req, res) => {
   const { id } = req.params;
   const { material_name } = req.body;
   try {
